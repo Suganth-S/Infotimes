@@ -1,0 +1,18 @@
+Short cuts :
+Shift+F6 -> to rename everywhere for class , file etc
+
+
+Notes :
+1. <action> tag in nav host file, which defines in moving from one fragment to another, we use this in our code to proceed transactions
+2. app:enterAnim, exitAnim in nav host file, helps to add animation to the file
+3. app:popEnterAnim in nav host - when we press back button and come back to this fragment it displays
+4. app:popExitAnim in nav host - same as pop enter , but this occur at exit
+5. id of the fragment,has to be given to items in bottom_nav_menu.xml to make transactions
+6. lazy{} - the purpose of that we only initialize this here when we wants
+7. HttpLoggingInterceptor - which able to see which request we are actually making and what the responses are
+8. Level.BODY - by setting level at 2nd line, we can able to see the response of the body then we using the interceptor and create a client
+9. id is nullable for articles - becoz we are not going to save articles, we only save an article that we wish, so we make it nullable for non-saved ones.
+10.onConflictStrategy - determines , what if the article we want to save that is already exists in our database, in that case we simply want to replace that article
+11. viewModel - wont recreate when we rotate a device
+12. version of db -  version is used to update our database later on so lets say we want to make some changes in some point then we need to update that version so that room knows that we made some updates to our database and that helps in migrate our own old database to new database.
+13. type Converters - here the problem is room only handle primitive datatypes not custom classes (Source),for that we need to create type converter to tell room ,it should interpret source class and to convert that source class into a string.
