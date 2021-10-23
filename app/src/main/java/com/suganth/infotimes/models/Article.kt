@@ -15,19 +15,19 @@ import java.io.Serializable
 data class Article(
     @PrimaryKey(autoGenerate = true)
     val id: Int? = null,
-    val author: String,
-    val content: String,
-    val description: String,
-    val publishedAt: String,
+    val author: String?,
+    val content: String?,
+    val description: String?,
+    val publishedAt: String?,
     /**
      * here the problem is room only handle primitive datatypes not custom classes (Source),
      * for that we need to create type converter to tell room ,it should interpret source class
      * and to convert that source class into a string
      */
-    val source: Source,
-    val title: String,
-    val url: String,
-    val urlToImage: String
+    val source: Source?,
+    val title: String?,
+    val url: String?,
+    val urlToImage: String?
     /**
      * Article is not a primitive data type like int or float, since it is
      * a more complex datatype we need to mark this class as Serializable

@@ -3,19 +3,24 @@ package com.suganth.infotimes.fragments
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.AbsListView
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.suganth.infotimes.R
 import com.suganth.infotimes.adapter.NewsAdapter
 import com.suganth.infotimes.ui.NewsActivity
 import com.suganth.infotimes.ui.NewsViewModel
 import com.suganth.infotimes.util.Constants
+import com.suganth.infotimes.util.Constants.Companion.QUERY_PAGE_SIZE
 import com.suganth.infotimes.util.Constants.Companion.SEARCH_NEWS_DELAY
 import com.suganth.infotimes.util.Resource
+import kotlinx.android.synthetic.main.fragment_breaking_news.*
 import kotlinx.android.synthetic.main.fragment_search_news.*
+import kotlinx.android.synthetic.main.fragment_search_news.paginationProgressBar
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
@@ -77,7 +82,13 @@ class SearchNewsFragment: Fragment(R.layout.fragment_search_news) {
                 response.data.let {
                         newsResponse ->
                     if (newsResponse != null) {
-                        newsAdapter.differ.submitList(newsResponse.articles)
+                        newsAdapter.differ.submitList(newsResponse.articles.toList())
+                        val totalPages = newsResponse.totalResults / QUERY_PAGE_SIZE + 2
+                        isLastPage = viewModel.searchNewsPage == totalPages
+                        if (isLastPage)
+                        {
+                            rvBreakingNews.setPadding(0,0,0,0)
+                        }
                     }
                 }
             }
@@ -96,10 +107,53 @@ class SearchNewsFragment: Fragment(R.layout.fragment_search_news) {
 
     private fun showProgressBar() {
         paginationProgressBar.visibility = View.VISIBLE
+        isLoading = true
     }
 
     private fun hideProgressBar() {
         paginationProgressBar.visibility = View.INVISIBLE
+        isLoading = false
+    }
+
+
+    /**
+     * pagination for loading new pages , when we reach end of the activity
+     */
+    var isLoading= false
+    var isLastPage = false
+    var isScrolling = false
+
+    var scrollListener = object : RecyclerView.OnScrollListener(){
+        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+            super.onScrollStateChanged(recyclerView, newState)
+            if(newState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL)
+            {
+                isScrolling = true
+            }
+        }
+
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            super.onScrolled(recyclerView, dx, dy)
+            /**
+             * there is no default way to find that we are at end page and we need to implement a next page
+             * to do that we manually did it with help of LayoutManager
+             */
+            val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+            val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
+            val visibleItemCount = layoutManager.childCount
+            val totalCount = layoutManager.itemCount
+
+            val isNotLoadingAndNotLastPage = !isLoading && !isScrolling
+            val isAtLastItem = firstVisibleItemPosition + visibleItemCount >= totalCount
+            val isNotAtBeginning = firstVisibleItemPosition >= 0
+            val istotalMorethanVisible = totalCount >= Constants.QUERY_PAGE_SIZE
+            val shouldPaginate = isNotLoadingAndNotLastPage && isAtLastItem && isNotAtBeginning && istotalMorethanVisible && isScrolling
+            if(shouldPaginate)
+            {
+                viewModel.searchNews(etSearch.text.toString())
+                isLoading = false
+            }
+        }
     }
 
     private fun setUpRecyclerView(){
@@ -107,6 +161,7 @@ class SearchNewsFragment: Fragment(R.layout.fragment_search_news) {
         rvSearchNews.apply {
             adapter = newsAdapter
             layoutManager = LinearLayoutManager(activity)
+            addOnScrollListener(this@SearchNewsFragment.scrollListener)
         }
     }
 }

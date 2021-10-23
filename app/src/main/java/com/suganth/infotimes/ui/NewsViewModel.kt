@@ -70,6 +70,23 @@ class NewsViewModel(
         if (response.isSuccessful)
         {
             response?.body()?.let { resultResponse ->
+                /**
+                 * once the response is successfully received means , we can increase our current page number
+                 * so that we can able to load next page after that
+                 */
+                breakingNewsPage++
+                if(breakingNewsResponse == null)
+                {
+                    breakingNewsResponse = resultResponse
+                }else{
+                    /**
+                     * since old article is a List, we cant change or add more, so
+                     * we make it mutable list
+                     */
+                    val oldArticles = breakingNewsResponse?.articles
+                    val newArticle = resultResponse.articles
+                    oldArticles?.addAll(newArticle)
+                }
                 return Resource.Success(resultResponse)
             }
         }
@@ -79,7 +96,21 @@ class NewsViewModel(
     private fun handleSearchNewsResponse(response: Response<NewsResponse>) : Resource<NewsResponse>{
         if(response.isSuccessful)
         {
-            response?.body()?.let { response -> return Resource.Success(response) }
+            response?.body()?.let { response ->
+                /**
+                 * once the response is successfully received means , we can increase our current page number
+                 * so that we can able to load next page after that
+                 */
+                searchNewsPage++
+                if (searchNewsResponse == null)
+                {
+                    searchNewsResponse = response
+                }else{
+                    val oldSearchArticles = searchNewsResponse?.articles
+                    val newSearchArticles = response.articles
+                    oldSearchArticles?.addAll(newSearchArticles)
+                }
+                return Resource.Success(response) }
         }
         return Resource.Error(response.message())
     }
