@@ -1,8 +1,16 @@
 package com.suganth.infotimes.ui
 
+import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.ConnectivityManager.*
+import android.net.NetworkCapabilities.*
+import android.os.Build
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.suganth.infotimes.NewsApplication
 import com.suganth.infotimes.models.Article
 import com.suganth.infotimes.models.NewsResponse
 import com.suganth.infotimes.repository.NewsRepository
@@ -10,6 +18,7 @@ import com.suganth.infotimes.util.Resource
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import retrofit2.Retrofit
+import java.io.IOException
 
 class NewsViewModel(
     /**
@@ -19,8 +28,11 @@ class NewsViewModel(
      * we need to create what is viewModelproviderFactory to define how our own viewmodel
      * should be created
      */
+    app: Application,
     val newsRepository: NewsRepository
-    ): ViewModel()
+    //instead of viewmodel , we are using AndroidViewModel, so that we can use app context,
+    // which used to check n/w connectivity
+    ): AndroidViewModel(app)
 {
     val breakingNews: MutableLiveData<Resource<NewsResponse>> = MutableLiveData()
 
@@ -52,15 +64,11 @@ class NewsViewModel(
          * we now know, that we are about to make a n/w call ,so we should emit that loading state
          * so our fragment can handle that
          */
-        breakingNews.postValue(Resource.Loading())
-        val response = newsRepository.getBreakingNews(countryCode,breakingNewsPage)
-        breakingNews.postValue(handleBreakingNewsResponse(response ))
+        safeBreakingNewsCall(countryCode)
     }
 
   fun searchNews(searchQuery: String) = viewModelScope.launch{
-        searchNews.postValue(Resource.Loading())
-        val response = newsRepository.searchNews(searchQuery,searchNewsPage)
-        searchNews.postValue(handleSearchNewsResponse(response))
+      safeSearchNewsCall(searchQuery)
     }
 
     /**
@@ -125,5 +133,74 @@ class NewsViewModel(
         newsRepository.delete(article)
     }
 
+    private suspend fun safeSearchNewsCall(searchQuery: String)
+    {
+        searchNews.postValue(Resource.Loading())
+        try {
+            if(checkInternet()){
+                val response = newsRepository.searchNews(searchQuery,searchNewsPage)
+                searchNews.postValue(handleSearchNewsResponse(response ))
+            }else{
+                searchNews.postValue(Resource.Error("No Internet Connection"))
+            }
+        }catch (t: Throwable){
+            when(t){
+                is IOException -> searchNews.postValue(Resource.Error("Network Failure"))
+                else -> searchNews.postValue(Resource.Error("Conversion Error"))
+            }
+        }
+    }
+
+
+    private suspend fun safeBreakingNewsCall(countryCode: String)
+    {
+        breakingNews.postValue(Resource.Loading())
+        try {
+            if(checkInternet()){
+                val response = newsRepository.getBreakingNews(countryCode,breakingNewsPage)
+                breakingNews.postValue(handleBreakingNewsResponse(response ))
+            }else{
+                breakingNews.postValue(Resource.Error("No Internet Connection"))
+            }
+        }catch (t: Throwable){
+                when(t){
+                    is IOException -> breakingNews.postValue(Resource.Error("Network Failure"))
+                    else -> breakingNews.postValue(Resource.Error("Conversion Error"))
+                }
+        }
+    }
+
+    /**
+     * Used To check network connectivity, dont pass activity context to the newsviewModel  use its context
+     * so that our activity gets destroyed, so that we cant use its context since its a bad practice
+     * so we are using ApplicationContext, becoz we know that it lives long until app exists, so that we Replace viewmodel
+     * with AndroidViewModel which ahs an ApplicationContext
+     */
+    private fun checkInternet() : Boolean{
+        val connectivityManager = getApplication<NewsApplication>().getSystemService(Context.CONNECTIVITY_SERVICE)
+        as ConnectivityManager
+
+        if (Build.VERSION.SDK_INT >=  Build.VERSION_CODES.M)
+        {
+            val activeNetwork = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+            return when {
+                capabilities.hasTransport(TRANSPORT_WIFI) -> true
+                capabilities.hasTransport(TRANSPORT_CELLULAR) -> true
+                capabilities.hasTransport(TRANSPORT_ETHERNET) -> true
+                else -> false
+            }
+        }else{
+            connectivityManager.activeNetworkInfo?.run {
+                return when(type) {
+                    TYPE_WIFI -> true
+                    TYPE_MOBILE ->true
+                    TYPE_ETHERNET ->true
+                    else -> false
+                }
+            }
+        }
+        return false
+    }
 
 }
